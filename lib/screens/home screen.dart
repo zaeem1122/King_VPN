@@ -788,16 +788,21 @@ class _FirstScreenState extends State<FirstScreen> {
   // ============= CONNECTION BUTTON =============
   // Replace the _buildConnectionButton method with this fixed version
 
+  // Replace the _buildConnectionButton method with this fixed version
+
+// Replace the _buildConnectionButton method with this fixed version
+
   Widget _buildConnectionButton(
       _ResponsiveHelper r,
       VpnConnectionProvider value,
       Function showProgressDialog,
       ) {
-    // Determine status based on VPN stage and isConnected
+    // Determine status based on VPN stage ONLY
     String status;
     Color statusColor;
 
-    if (value.stage == VPNStage.connected || value.isConnected) {
+    // Check stage in priority order
+    if (value.stage == VPNStage.connected) {
       status = "CONNECTED";
       statusColor = Colors.blue;
     } else if (value.stage == VPNStage.connecting ||
@@ -805,14 +810,16 @@ class _FirstScreenState extends State<FirstScreen> {
         value.stage == VPNStage.authenticating ||
         value.stage == VPNStage.authentication ||
         value.stage == VPNStage.resolve ||
-        value.stage == VPNStage.wait_connection) {
+        value.stage == VPNStage.wait_connection ||
+        value.stage == VPNStage.vpn_generate_config ||
+        value.stage == VPNStage.tcp_connect ||
+        value.stage == VPNStage.get_config ||
+        value.stage == VPNStage.assign_ip) {
       status = "CONNECTING";
       statusColor = Colors.orange;
-    } else if (value.stage == VPNStage.disconnected) {
-      status = "DISCONNECT";
-      statusColor = Colors.white;
     } else {
-      status = "READY";
+      // VPNStage.disconnected, idle, or any other state
+      status = "DISCONNECT";
       statusColor = Colors.white;
     }
 
@@ -827,7 +834,7 @@ class _FirstScreenState extends State<FirstScreen> {
           child: RippleAnimation(
             repeat: true,
             color: Colors.blue,
-            minRadius: value.stage == VPNStage.disconnected ? 0 : buttonSize * 0.6,
+            minRadius: (value.stage == VPNStage.connected) ? buttonSize * 0.6 : 0,
             ripplesCount: 3,
             duration: const Duration(milliseconds: 2000),
             delay: const Duration(milliseconds: 0),
@@ -842,7 +849,7 @@ class _FirstScreenState extends State<FirstScreen> {
                   color: Colors.black,
                   border: Border.all(color: Colors.white, width: 2),
                   borderRadius: BorderRadius.circular(buttonSize / 2),
-                  boxShadow: (value.stage == VPNStage.connected || value.isConnected)
+                  boxShadow: (value.stage == VPNStage.connected)
                       ? [
                     BoxShadow(
                       color: Colors.grey[500]!,
@@ -861,7 +868,7 @@ class _FirstScreenState extends State<FirstScreen> {
                 ),
                 child: Icon(
                   Icons.power_settings_new_outlined,
-                  color: (value.stage == VPNStage.connected || value.isConnected)
+                  color: (value.stage == VPNStage.connected)
                       ? Colors.blue
                       : Colors.grey,
                   size: r.iconSize(70),
@@ -919,7 +926,6 @@ class _FirstScreenState extends State<FirstScreen> {
       ],
     );
   }
-
 
   // ============= CONNECTION HANDLER =============
   // ============= CONNECTION HANDLER =============

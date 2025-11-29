@@ -3,6 +3,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:provider/provider.dart';
 import 'package:vpnprowithjava/modals/vpnConfig.dart';
 import 'package:vpnprowithjava/modals/vpnServer.dart';
+import 'package:openvpn_flutter/openvpn_flutter.dart';
 
 import '../providers/ads_provider.dart';
 import '../providers/appsProvider.dart';
@@ -91,6 +92,9 @@ class _ServersScreenState extends State<ServersScreen> {
     if (controllerVPN.vpnConfig != null) {
       showProgressDialog(context);
 
+      // Mark that we tried to connect
+      vpnConnectionProvider.triedToConnect = true;
+
       await vpnConnectionProvider.initPlatformState(
         controllerVPN.vpnConfig!.ovpn,
         controllerVPN.vpnConfig!.country,
@@ -99,12 +103,80 @@ class _ServersScreenState extends State<ServersScreen> {
         controllerVPN.vpnConfig!.password ?? "",
       );
 
-      await Future.delayed(const Duration(seconds: 3));
-      Navigator.pop(context); // Close progress dialog
-      Navigator.pop(context); // Close server list
+      // Close progress dialog
+      Navigator.pop(context);
 
-      // NO TOAST HERE — Toast is now handled ONLY by provider (when actual connected)
+      // Listen for VPN connection result
+      _listenVpnConnectionOnce(vpnConnectionProvider);
     }
+  }
+
+  // ============= LISTENER THAT RUNS ONLY ONCE ============
+  void _listenVpnConnectionOnce(VpnConnectionProvider value) {
+    // Remove previous listener if any
+    value.removeListener(_vpnListener);
+
+    // Add listener
+    value.addListener(_vpnListener);
+  }
+
+  // Actual listener function
+  void _vpnListener() {
+    final value = Provider.of<VpnConnectionProvider>(context, listen: false);
+
+    // === SUCCESSFUL CONNECTION ===
+    if (value.stage == VPNStage.connected && !value.hasShownToast) {
+      Fluttertoast.showToast(
+        msg: "Connected Successfully",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.TOP,
+        backgroundColor: Colors.blue,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+
+      Future.delayed(const Duration(seconds: 1), () {
+        Fluttertoast.showToast(
+          msg: "Now you are protected",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.TOP,
+          backgroundColor: Colors.blue,
+          textColor: Colors.white,
+          fontSize: 16.0,
+        );
+      });
+
+      value.hasShownToast = true;
+      value.removeListener(_vpnListener);
+
+      // Close server list screen on successful connection
+      Navigator.pop(context);
+      return;
+    }
+
+    // === FAILED CONNECTION (DISCONNECTED AFTER USER TAP) ===
+    if (value.stage == VPNStage.disconnected && value.triedToConnect == true) {
+      Fluttertoast.showToast(
+        msg: "VPN connection failed. Please try again.",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.TOP,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+
+      value.triedToConnect = false; // reset flag
+      value.removeListener(_vpnListener);
+    }
+  }
+
+  @override
+  void dispose() {
+    // Clean up listener when screen is disposed
+    final vpnConnectionProvider =
+    Provider.of<VpnConnectionProvider>(context, listen: false);
+    vpnConnectionProvider.removeListener(_vpnListener);
+    super.dispose();
   }
 
   @override
