@@ -792,6 +792,7 @@ class _FirstScreenState extends State<FirstScreen> {
 
 // Replace the _buildConnectionButton method with this fixed version
 
+// ============= CONNECTION BUTTON =============
   Widget _buildConnectionButton(
       _ResponsiveHelper r,
       VpnConnectionProvider value,
@@ -800,6 +801,7 @@ class _FirstScreenState extends State<FirstScreen> {
     // Determine status based on VPN stage ONLY
     String status;
     Color statusColor;
+    bool isConnecting = false;
 
     // Check stage in priority order
     if (value.stage == VPNStage.connected) {
@@ -817,6 +819,7 @@ class _FirstScreenState extends State<FirstScreen> {
         value.stage == VPNStage.assign_ip) {
       status = "CONNECTING";
       statusColor = Colors.orange;
+      isConnecting = true;
     } else {
       // VPNStage.disconnected, idle, or any other state
       status = "DISCONNECT";
@@ -839,8 +842,10 @@ class _FirstScreenState extends State<FirstScreen> {
             duration: const Duration(milliseconds: 2000),
             delay: const Duration(milliseconds: 0),
             child: InkWell(
-              splashColor: Colors.grey,
-              onTap: () => _handleConnectionTap(value, showProgressDialog),
+              splashColor: isConnecting ? Colors.transparent : Colors.grey,
+              onTap: isConnecting
+                  ? null // Disable tap when connecting
+                  : () => _handleConnectionTap(value, showProgressDialog),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 height: buttonSize,
@@ -868,7 +873,9 @@ class _FirstScreenState extends State<FirstScreen> {
                 ),
                 child: Icon(
                   Icons.power_settings_new_outlined,
-                  color: (value.stage == VPNStage.connected)
+                  color: isConnecting
+                      ? Colors.grey.withOpacity(0.5) // Dimmed when connecting
+                      : (value.stage == VPNStage.connected)
                       ? Colors.blue
                       : Colors.grey,
                   size: r.iconSize(70),
@@ -927,8 +934,7 @@ class _FirstScreenState extends State<FirstScreen> {
     );
   }
 
-  // ============= CONNECTION HANDLER =============
-  // ============= CONNECTION HANDLER =============
+// ============= CONNECTION HANDLER =============
   Future<void> _handleConnectionTap(
       VpnConnectionProvider value,
       Function showProgressDialog,
@@ -938,7 +944,7 @@ class _FirstScreenState extends State<FirstScreen> {
     final adsProvider = Provider.of<AdsProvider>(context, listen: false);
 
     // If already connected, disconnect
-    if (value.stage == VPNStage.connected || value.isConnected) {
+    if (value.stage == VPNStage.connected) {
       value.engine.disconnect();
       Fluttertoast.showToast(
         msg: "Disconnected Successfully",
@@ -951,7 +957,22 @@ class _FirstScreenState extends State<FirstScreen> {
       return;
     }
 
-    // Show ads before connection
+    // Check if currently in connecting state - should not happen due to disabled button
+    if (value.stage == VPNStage.connecting ||
+        value.stage == VPNStage.prepare ||
+        value.stage == VPNStage.authenticating ||
+        value.stage == VPNStage.authentication ||
+        value.stage == VPNStage.resolve ||
+        value.stage == VPNStage.wait_connection ||
+        value.stage == VPNStage.vpn_generate_config ||
+        value.stage == VPNStage.tcp_connect ||
+        value.stage == VPNStage.get_config ||
+        value.stage == VPNStage.assign_ip) {
+      // Already connecting, ignore tap
+      return;
+    }
+
+    // Show ads only when initiating connection (not during connecting state)
     adsProvider.loadInterstitialAd().then((_) => adsProvider.showInterstitialAd());
 
     if (value.getInitCheck()) value.initialize();
