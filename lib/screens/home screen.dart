@@ -176,7 +176,8 @@ class _FirstScreenState extends State<FirstScreen> {
           .loadInterstitialAd();
 
       // CRITICAL: Get VPN connection provider
-      final vpnConnection = Provider.of<VpnConnectionProvider>(context, listen: false);
+      final vpnConnection =
+          Provider.of<VpnConnectionProvider>(context, listen: false);
 
       vpnConnection.hasShownToast = true;
 
@@ -330,6 +331,7 @@ class _FirstScreenState extends State<FirstScreen> {
       myProvider.setLoading(false);
     }
   }
+
   Future<void> _loadAppState() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -496,7 +498,7 @@ class _FirstScreenState extends State<FirstScreen> {
             r,
             Icons.app_settings_alt_outlined,
             "Allowed Apps",
-                () => Navigator.of(context).push(
+            () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (context) => const AllowedAppsScreen(),
               ),
@@ -535,11 +537,11 @@ class _FirstScreenState extends State<FirstScreen> {
   }
 
   Widget _buildDrawerItem(
-      _ResponsiveHelper r,
-      IconData icon,
-      String title,
-      VoidCallback onTap,
-      ) {
+    _ResponsiveHelper r,
+    IconData icon,
+    String title,
+    VoidCallback onTap,
+  ) {
     return ListTile(
       onTap: onTap,
       contentPadding: EdgeInsets.symmetric(
@@ -710,7 +712,8 @@ class _FirstScreenState extends State<FirstScreen> {
   }
 
   // ============= STATS AND BUTTON =============
-  Widget _buildStatsAndButton(_ResponsiveHelper r, Function showProgressDialog) {
+  Widget _buildStatsAndButton(
+      _ResponsiveHelper r, Function showProgressDialog) {
     return Consumer<VpnConnectionProvider>(
       builder: (context, value, child) => Padding(
         padding: EdgeInsets.symmetric(horizontal: r.spacing(16)),
@@ -725,8 +728,8 @@ class _FirstScreenState extends State<FirstScreen> {
                 "Download",
                 value.stage?.toString() == "VPNStage.connected"
                     ? bytesPerSecondToMbps(
-                    double.parse(value.status!.byteIn ?? "0000"))
-                    .toStringAsFixed(2)
+                            double.parse(value.status!.byteIn ?? "0000"))
+                        .toStringAsFixed(2)
                     : "00:00",
                 "Mbps",
               ),
@@ -744,8 +747,8 @@ class _FirstScreenState extends State<FirstScreen> {
                 "Upload",
                 value.stage?.toString() == "VPNStage.connected"
                     ? bytesPerSecondToMbps(
-                    double.parse(value.status!.byteOut ?? "0000"))
-                    .toStringAsFixed(2)
+                            double.parse(value.status!.byteOut ?? "0000"))
+                        .toStringAsFixed(2)
                     : "00:00",
                 "Mbps",
               ),
@@ -757,11 +760,11 @@ class _FirstScreenState extends State<FirstScreen> {
   }
 
   Widget _buildStatColumn(
-      _ResponsiveHelper r,
-      String title,
-      String value,
-      String unit,
-      ) {
+    _ResponsiveHelper r,
+    String title,
+    String value,
+    String unit,
+  ) {
     return Container(
       constraints: BoxConstraints(
         maxWidth: r.getValue(
@@ -816,19 +819,11 @@ class _FirstScreenState extends State<FirstScreen> {
     );
   }
 
-  // ============= CONNECTION BUTTON =============
-  // Replace the _buildConnectionButton method with this fixed version
-
-  // Replace the _buildConnectionButton method with this fixed version
-
-// Replace the _buildConnectionButton method with this fixed version
-
-// ============= CONNECTION BUTTON =============
   Widget _buildConnectionButton(
-      _ResponsiveHelper r,
-      VpnConnectionProvider value,
-      Function showProgressDialog,
-      ) {
+    _ResponsiveHelper r,
+    VpnConnectionProvider value,
+    Function showProgressDialog,
+  ) {
     // Determine status based on VPN stage ONLY
     String status;
     Color statusColor;
@@ -862,60 +857,7 @@ class _FirstScreenState extends State<FirstScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          height: buttonSize,
-          width: buttonSize,
-          child: RippleAnimation(
-            repeat: true,
-            color: Colors.blue,
-            minRadius: (value.stage == VPNStage.connected) ? buttonSize * 0.6 : 0,
-            ripplesCount: 3,
-            duration: const Duration(milliseconds: 2000),
-            delay: const Duration(milliseconds: 0),
-            child: InkWell(
-              splashColor: isConnecting ? Colors.transparent : Colors.grey,
-              onTap: isConnecting
-                  ? null // Disable tap when connecting
-                  : () => _handleConnectionTap(value, showProgressDialog),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                height: buttonSize,
-                width: buttonSize,
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  border: Border.all(color: Colors.white, width: 2),
-                  borderRadius: BorderRadius.circular(buttonSize / 2),
-                  boxShadow: (value.stage == VPNStage.connected)
-                      ? [
-                    BoxShadow(
-                      color: Colors.grey[500]!,
-                      offset: const Offset(4, 4),
-                      blurRadius: 15,
-                      spreadRadius: 1,
-                    ),
-                    const BoxShadow(
-                      color: Colors.white,
-                      offset: Offset(-4, -4),
-                      blurRadius: 15,
-                      spreadRadius: 1,
-                    )
-                  ]
-                      : null,
-                ),
-                child: Icon(
-                  Icons.power_settings_new_outlined,
-                  color: isConnecting
-                      ? Colors.grey.withOpacity(0.5) // Dimmed when connecting
-                      : (value.stage == VPNStage.connected)
-                      ? Colors.blue
-                      : Colors.grey,
-                  size: r.iconSize(70),
-                ),
-              ),
-            ),
-          ),
-        ),
-        SizedBox(height: r.spacing(16)),
+        // ================== STATUS CONTAINER ABOVE BUTTON ==================
         AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           padding: EdgeInsets.symmetric(
@@ -961,14 +903,72 @@ class _FirstScreenState extends State<FirstScreen> {
             ],
           ),
         ),
+
+        SizedBox(height: r.spacing(16)),
+
+        // ================== CIRCULAR VPN BUTTON ==================
+        SizedBox(
+          height: buttonSize,
+          width: buttonSize,
+          child: RippleAnimation(
+            repeat: true,
+            color: Colors.blue,
+            minRadius:
+                (value.stage == VPNStage.connected) ? buttonSize * 0.6 : 0,
+            ripplesCount: 3,
+            duration: const Duration(milliseconds: 2000),
+            delay: const Duration(milliseconds: 0),
+            child: InkWell(
+              splashColor: isConnecting ? Colors.transparent : Colors.grey,
+              onTap: isConnecting
+                  ? null // Disable tap when connecting
+                  : () => _handleConnectionTap(value, showProgressDialog),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                height: buttonSize,
+                width: buttonSize,
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  border: Border.all(color: Colors.white, width: 2),
+                  borderRadius: BorderRadius.circular(buttonSize / 2),
+                  boxShadow: (value.stage == VPNStage.connected)
+                      ? [
+                          BoxShadow(
+                            color: Colors.grey[500]!,
+                            offset: const Offset(4, 4),
+                            blurRadius: 15,
+                            spreadRadius: 1,
+                          ),
+                          const BoxShadow(
+                            color: Colors.white,
+                            offset: Offset(-4, -4),
+                            blurRadius: 15,
+                            spreadRadius: 1,
+                          )
+                        ]
+                      : null,
+                ),
+                child: Icon(
+                  Icons.power_settings_new_outlined,
+                  color: isConnecting
+                      ? Colors.grey.withOpacity(0.5)
+                      : (value.stage == VPNStage.connected)
+                          ? Colors.blue
+                          : Colors.grey,
+                  size: r.iconSize(70),
+                ),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
 
   Future<void> _handleConnectionTap(
-      VpnConnectionProvider value,
-      Function showProgressDialog,
-      ) async {
+    VpnConnectionProvider value,
+    Function showProgressDialog,
+  ) async {
     final vpnProvider = Provider.of<VpnProvider>(context, listen: false);
     final apps = Provider.of<AppsProvider>(context, listen: false);
     final adsProvider = Provider.of<AdsProvider>(context, listen: false);
@@ -1014,7 +1014,9 @@ class _FirstScreenState extends State<FirstScreen> {
     // Reset hasShownToast for this NEW connection attempt
     value.hasShownToast = false;
 
-    adsProvider.loadInterstitialAd().then((_) => adsProvider.showInterstitialAd());
+    adsProvider
+        .loadInterstitialAd()
+        .then((_) => adsProvider.showInterstitialAd());
 
     if (value.getInitCheck()) value.initialize();
 
@@ -1089,7 +1091,8 @@ class _FirstScreenState extends State<FirstScreen> {
           );
         });
       } else {
-        print("   🚫 Toast blocked - userInitiated: $_userInitiatedConnection, restored: $_hasRestoredConnection");
+        print(
+            "   🚫 Toast blocked - userInitiated: $_userInitiatedConnection, restored: $_hasRestoredConnection");
       }
 
       setState(() {
@@ -1149,34 +1152,34 @@ class _FirstScreenState extends State<FirstScreen> {
             Consumer<VpnProvider>(
               builder: (context, value, child) => value.vpnConfig == null
                   ? Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: r.spacing(20),
-                ),
-                child: Icon(
-                  Icons.flag,
-                  size: r.iconSize(30),
-                  color: Colors.white,
-                ),
-              )
+                      padding: EdgeInsets.symmetric(
+                        horizontal: r.spacing(20),
+                      ),
+                      child: Icon(
+                        Icons.flag,
+                        size: r.iconSize(30),
+                        color: Colors.white,
+                      ),
+                    )
                   : Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: r.spacing(20),
-                ),
-                child: Container(
-                  height: r.iconSize(30),
-                  width: r.iconSize(45),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(r.radius(8)),
-                    image: DecorationImage(
-                      fit: BoxFit.cover,
-                      image: AssetImage(
-                        'icons/flags/png250px/${value.vpnConfig!.countryCode.toLowerCase()}.png',
-                        package: 'country_icons',
+                      padding: EdgeInsets.symmetric(
+                        horizontal: r.spacing(20),
+                      ),
+                      child: Container(
+                        height: r.iconSize(30),
+                        width: r.iconSize(45),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(r.radius(8)),
+                          image: DecorationImage(
+                            fit: BoxFit.cover,
+                            image: AssetImage(
+                              'icons/flags/png250px/${value.vpnConfig!.countryCode.toLowerCase()}.png',
+                              package: 'country_icons',
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ),
             ),
             Expanded(
               child: Consumer<VpnProvider>(
