@@ -157,6 +157,7 @@ class _FirstScreenState extends State<FirstScreen> {
   bool _isConnected = false;
   var v5;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  
 
   @override
   void initState() {
@@ -301,6 +302,7 @@ class _FirstScreenState extends State<FirstScreen> {
     prefs.setBool('isConnected', _isConnected);
     prefs.setBool('showSnackbar', _isConnected);
   }
+
 
   Future<void> _loadAppState() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
