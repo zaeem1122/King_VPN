@@ -10,6 +10,8 @@ class VpnConnectionProvider with ChangeNotifier {
 
   bool _isInitialized = false;
   bool _isConnected = false;
+  bool restoredFromAppStart = false;
+
 
   bool get isConnected => _isConnected;
 
@@ -23,6 +25,7 @@ class VpnConnectionProvider with ChangeNotifier {
     _isConnected = prefs.getBool('isConnected') ?? false;
 
     if (_isConnected) {
+      restoredFromAppStart = true;   // <-- IMPORTANT
       initialize();
     }
   }
@@ -67,28 +70,30 @@ class VpnConnectionProvider with ChangeNotifier {
             _isConnected = true;
             saveVpnState();
 
-            // Show toast ONLY when VPN is fully connected
-            Fluttertoast.showToast(
-              msg: "Connected Successfully",
-              toastLength: Toast.LENGTH_LONG,
-              gravity: ToastGravity.TOP,
-              backgroundColor: Colors.blue,
-              textColor: Colors.white,
-              fontSize: 16.0,
-              timeInSecForIosWeb: 5,
-            );
-
-            Future.delayed(const Duration(seconds: 5), () {
+            // ❌ DO NOT SHOW TOAST IF IT'S FROM restoreVpnState()
+            if (!restoredFromAppStart) {
               Fluttertoast.showToast(
-                msg: "Now you are protected",
+                msg: "Connected Successfully",
                 toastLength: Toast.LENGTH_LONG,
                 gravity: ToastGravity.TOP,
                 backgroundColor: Colors.blue,
                 textColor: Colors.white,
                 fontSize: 16.0,
-                timeInSecForIosWeb: 5,
               );
-            });
+
+              Future.delayed(const Duration(seconds: 2), () {
+                Fluttertoast.showToast(
+                  msg: "Now you are protected",
+                  toastLength: Toast.LENGTH_LONG,
+                  gravity: ToastGravity.TOP,
+                  backgroundColor: Colors.blue,
+                  textColor: Colors.white,
+                  fontSize: 16.0,
+                );
+              });
+            }
+
+            restoredFromAppStart = false;  // Reset for next time
           }
 
           // RESET STATE WHEN DISCONNECTED

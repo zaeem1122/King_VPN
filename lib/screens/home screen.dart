@@ -157,7 +157,8 @@ class _FirstScreenState extends State<FirstScreen> {
   bool _isConnected = false;
   var v5;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
-  
+  bool _userInitiatedConnection = false; // ADD THIS
+  bool _hasRestoredConnection = false; // ADD THIS NEW FLAG
 
   @override
   void initState() {
@@ -168,12 +169,45 @@ class _FirstScreenState extends State<FirstScreen> {
     _connectivitySubscription =
         Connectivity().onConnectivityChanged.listen(_updateConnectionStatus);
     _loadAppState();
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Provider.of<AdsProvider>(context, listen: false).loadAds();
       await Provider.of<AdsProvider>(context, listen: false)
           .loadInterstitialAd();
-      await Provider.of<VpnConnectionProvider>(context, listen: false)
-          .restoreVpnState();
+
+      // CRITICAL: Get VPN connection provider
+      final vpnConnection = Provider.of<VpnConnectionProvider>(context, listen: false);
+
+      vpnConnection.hasShownToast = true;
+
+      // Set flags to indicate this is a restore, not a new connection
+      if (mounted) {
+        setState(() {
+          _hasRestoredConnection = true;
+          _userInitiatedConnection = false;
+        });
+      }
+
+      // Mark toast as already shown to prevent any toast on restore
+
+      // Now restore VPN state
+      await vpnConnection.restoreVpnState();
+
+      // Print debug info
+      print("🔄 VPN State Restored");
+      print("   Stage: ${vpnConnection.stage}");
+      print("   _hasRestoredConnection: $_hasRestoredConnection");
+      print("   _userInitiatedConnection: $_userInitiatedConnection");
+      print("   hasShownToast: ${vpnConnection.hasShownToast}");
+
+      // Reset restoration flag after delay
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          setState(() {
+            _hasRestoredConnection = false;
+          });
+        }
+      });
     });
   }
 
@@ -296,23 +330,18 @@ class _FirstScreenState extends State<FirstScreen> {
       myProvider.setLoading(false);
     }
   }
-
-  Future<void> _saveAppState() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setBool('isConnected', _isConnected);
-    prefs.setBool('showSnackbar', _isConnected);
-  }
-
-
   Future<void> _loadAppState() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       _isConnected = prefs.getBool('isConnected') ?? false;
-      bool showSnackbar = prefs.getBool('showSnackbar') ?? false;
-      if (showSnackbar) {
-        showPersistentSnackbar("Connected", context);
-      }
     });
+    // Don't show any snackbar on app restart
+  }
+
+  Future<void> _saveAppState() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setBool('isConnected', _isConnected);
+    // Removed showSnackbar flag as we don't use it anymore
   }
 
   void _updateConnectionStatus(List<ConnectivityResult> result) {
@@ -936,7 +965,6 @@ class _FirstScreenState extends State<FirstScreen> {
     );
   }
 
-// ============= CONNECTION HANDLER =============
   Future<void> _handleConnectionTap(
       VpnConnectionProvider value,
       Function showProgressDialog,
@@ -948,6 +976,10 @@ class _FirstScreenState extends State<FirstScreen> {
     // If already connected, disconnect
     if (value.stage == VPNStage.connected) {
       value.engine.disconnect();
+      setState(() {
+        _userInitiatedConnection = false;
+        _hasRestoredConnection = false;
+      });
       Fluttertoast.showToast(
         msg: "Disconnected Successfully",
         toastLength: Toast.LENGTH_SHORT,
@@ -959,7 +991,7 @@ class _FirstScreenState extends State<FirstScreen> {
       return;
     }
 
-    // Check if currently in connecting state - should not happen due to disabled button
+    // Check if currently in connecting state
     if (value.stage == VPNStage.connecting ||
         value.stage == VPNStage.prepare ||
         value.stage == VPNStage.authenticating ||
@@ -970,20 +1002,26 @@ class _FirstScreenState extends State<FirstScreen> {
         value.stage == VPNStage.tcp_connect ||
         value.stage == VPNStage.get_config ||
         value.stage == VPNStage.assign_ip) {
-      // Already connecting, ignore tap
       return;
     }
 
-    // Show ads only when initiating connection (not during connecting state)
+    // CRITICAL: Set flags BEFORE starting connection
+    setState(() {
+      _userInitiatedConnection = true;
+      _hasRestoredConnection = false;
+    });
+
+    // Reset hasShownToast for this NEW connection attempt
+    value.hasShownToast = false;
+
     adsProvider.loadInterstitialAd().then((_) => adsProvider.showInterstitialAd());
 
     if (value.getInitCheck()) value.initialize();
 
     if (vpnProvider.vpnConfig != null) {
-      // Show progress dialog
       showProgressDialog(context);
       value.triedToConnect = true;
-      // Start VPN
+
       await value.initPlatformState(
         vpnProvider.vpnConfig!.ovpn,
         vpnProvider.vpnConfig!.country,
@@ -992,13 +1030,11 @@ class _FirstScreenState extends State<FirstScreen> {
         vpnProvider.vpnConfig!.password ?? "",
       );
 
-      // Close progress dialog
       Navigator.pop(context);
 
-      // Listen for VPN connection **once**
+      // ONLY attach listener for user-initiated connections
       _listenVpnConnectionOnce(value);
     } else {
-      // No VPN config, navigate to server selection
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const ServerTabs()),
@@ -1015,30 +1051,49 @@ class _FirstScreenState extends State<FirstScreen> {
     value.addListener(_vpnListener);
   }
 
-// Actual listener function
+  // Actual listener function
+  // Actual listener function
   void _vpnListener() {
     final value = Provider.of<VpnConnectionProvider>(context, listen: false);
 
+    print("🔔 _vpnListener called - Stage: ${value.stage}");
+    print("   _userInitiatedConnection: $_userInitiatedConnection");
+    print("   _hasRestoredConnection: $_hasRestoredConnection");
+    print("   hasShownToast: ${value.hasShownToast}");
+
     // === SUCCESSFUL CONNECTION ===
     if (value.stage == VPNStage.connected && !value.hasShownToast) {
-      Fluttertoast.showToast(
-        msg: "Connected Successfully",
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.TOP,
-        backgroundColor: Colors.blue,
-        textColor: Colors.white,
-        fontSize: 16.0,
-      );
+      print("   ✅ Connected detected");
 
-      Future.delayed(const Duration(seconds: 1), () {
+      // ONLY show toast if user manually initiated AND not a restore
+      if (_userInitiatedConnection && !_hasRestoredConnection) {
+        print("   📱 Showing success toasts");
+
         Fluttertoast.showToast(
-          msg: "Now you are protected",
+          msg: "Connected Successfully",
           toastLength: Toast.LENGTH_SHORT,
           gravity: ToastGravity.TOP,
           backgroundColor: Colors.blue,
           textColor: Colors.white,
           fontSize: 16.0,
         );
+
+        Future.delayed(const Duration(seconds: 1), () {
+          Fluttertoast.showToast(
+            msg: "Now you are protected",
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.TOP,
+            backgroundColor: Colors.blue,
+            textColor: Colors.white,
+            fontSize: 16.0,
+          );
+        });
+      } else {
+        print("   🚫 Toast blocked - userInitiated: $_userInitiatedConnection, restored: $_hasRestoredConnection");
+      }
+
+      setState(() {
+        _userInitiatedConnection = false;
       });
 
       value.hasShownToast = true;
@@ -1046,8 +1101,10 @@ class _FirstScreenState extends State<FirstScreen> {
       return;
     }
 
-    // === FAILED CONNECTION (DISCONNECTED AFTER USER TAP) ===
+    // === FAILED CONNECTION ===
     if (value.stage == VPNStage.disconnected && value.triedToConnect == true) {
+      print("   ❌ Connection failed");
+
       Fluttertoast.showToast(
         msg: "VPN connection failed. Please try again.",
         toastLength: Toast.LENGTH_SHORT,
@@ -1057,15 +1114,15 @@ class _FirstScreenState extends State<FirstScreen> {
         fontSize: 16.0,
       );
 
-      value.triedToConnect = false; // reset flag
+      value.triedToConnect = false;
+      setState(() {
+        _userInitiatedConnection = false;
+      });
       value.removeListener(_vpnListener);
     }
   }
 
-
-
-
-  // ============= SERVER SELECTOR =============
+// ============= SERVER SELECTOR =============
   Widget _buildServerSelector(_ResponsiveHelper r) {
     return InkWell(
       onTap: () => Navigator.push(
@@ -1150,43 +1207,40 @@ class _FirstScreenState extends State<FirstScreen> {
     );
   }
 
+// ============= PERSISTENT SNACKBAR =============
   // ============= PERSISTENT SNACKBAR =============
-  void showPersistentSnackbar(String message, BuildContext context) {
-    final r = _ResponsiveHelper(context);
-    Scaffold.of(context).showBottomSheet((BuildContext context) {
-      return SafeArea(
-        child: Container(
-          padding: EdgeInsets.all(r.spacing(15)),
-          decoration: BoxDecoration(
-            color: Colors.blue,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(r.radius(16)),
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  message,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: r.fontSize(14),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: Icon(
-                  Icons.close,
-                  color: Colors.white,
-                  size: r.iconSize(24),
-                ),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
+  void showPersistentSnackbar(String message) {
+    // Use the scaffold key to get the correct context
+    final scaffoldContext = _scaffoldKey.currentContext;
+    if (scaffoldContext == null) return;
+
+    final r = _ResponsiveHelper(scaffoldContext);
+
+    // Use ScaffoldMessenger instead of Scaffold.of()
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: r.fontSize(14),
+            fontWeight: FontWeight.w500,
           ),
         ),
-      );
-    });
+        backgroundColor: Colors.blue,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(r.radius(16)),
+        ),
+        action: SnackBarAction(
+          label: 'Close',
+          textColor: Colors.white,
+          onPressed: () {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          },
+        ),
+      ),
+    );
   }
-}
+} // ← THIS CLOSING BRACE ENDS _FirstScreenState CLASS
