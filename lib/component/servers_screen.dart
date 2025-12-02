@@ -33,34 +33,32 @@ class _ServersScreenState extends State<ServersScreen> {
     _restoreSelectedServer();
   }
 
-  /// 🔥 Restore connected server selection when app restarts
+  /// 🔥 Restore last selected server from VPN connection provider
   void _restoreSelectedServer() {
     final vpn = Provider.of<VpnConnectionProvider>(context, listen: false);
     final controller = Provider.of<ServersProvider>(context, listen: false);
 
-    if (!vpn.isConnected) return;
+    // If no saved server, do nothing
+    if (vpn.lastConnectedCountryCode == null) return;
 
-    if (vpn.lastConnectedCountry == null || vpn.lastConnectedCountryCode == null) {
-      return;
-    }
-
-    // find the index in THIS list of servers
+    // Find server in this list
     final index = widget.servers.indexWhere((s) =>
-    s.country == vpn.lastConnectedCountry &&
-        s.countryCode.toLowerCase() == vpn.lastConnectedCountryCode!.toLowerCase()
+    s.countryCode.toLowerCase() == vpn.lastConnectedCountryCode!.toLowerCase()
     );
 
     if (index != -1) {
       controller.setSelectedIndex(index);
       controller.setSelectedTab(widget.tab);
+      controller.setSelectedServer(widget.servers[index]); // important for yellow highlight
     }
   }
 
+  /// Show loading dialog while connecting
   void showProgressDialog(BuildContext context) {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) {
+      builder: (_) {
         return const AlertDialog(
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -75,6 +73,7 @@ class _ServersScreenState extends State<ServersScreen> {
     );
   }
 
+  /// Connect to selected server
   Future<void> connectToServer(VpnServer server, int index) async {
     final controller = Provider.of<ServersProvider>(context, listen: false);
     final controllerVPN = Provider.of<VpnProvider>(context, listen: false);
@@ -83,25 +82,22 @@ class _ServersScreenState extends State<ServersScreen> {
     final adsProvider = Provider.of<AdsProvider>(context, listen: false);
     final apps = Provider.of<AppsProvider>(context, listen: false);
 
-    /// Store selected server in UI
+    // Update selected server in provider
     controller.setSelectedIndex(index);
     controller.setSelectedTab(widget.tab);
+    controller.setSelectedServer(server);
+
     controllerVPN.vpnConfig = VpnConfig.fromJson(server.toJson());
 
-    /// 🔥 Save this server as the last connected server immediately
+    // Save as last connected server
     vpnConnectionProvider.lastConnectedCountry = server.country;
     vpnConnectionProvider.lastConnectedCountryCode = server.countryCode;
-    vpnConnectionProvider.saveVpnState();
+    await vpnConnectionProvider.saveVpnState();
 
     // Disconnect if already connected
-    final comp = vpnConnectionProvider.stage?.toString() == null
-        ? "Disconnect"
-        : vpnConnectionProvider.stage.toString().split('.').last;
-
-    if (comp == "connected") {
+    if (vpnConnectionProvider.stage == VPNStage.connected) {
       vpnConnectionProvider.engine.disconnect();
       await Future.delayed(const Duration(seconds: 1));
-
       Fluttertoast.showToast(
         msg: "Disconnected from previous server",
         toastLength: Toast.LENGTH_SHORT,
@@ -114,10 +110,10 @@ class _ServersScreenState extends State<ServersScreen> {
 
     vpnConnectionProvider.setRadius();
 
-    adsProvider.loadInterstitialAd().then((_) {
-      adsProvider.showInterstitialAd();
-    });
+    // Show interstitial ad if loaded
+    adsProvider.loadInterstitialAd().then((_) => adsProvider.showInterstitialAd());
 
+    // Initialize VPN engine if not already
     if (vpnConnectionProvider.getInitCheck()) {
       vpnConnectionProvider.initialize();
     }
@@ -135,8 +131,8 @@ class _ServersScreenState extends State<ServersScreen> {
         controllerVPN.vpnConfig!.password ?? "",
       );
 
-      Navigator.pop(context);
-      Navigator.pop(context);
+      Navigator.pop(context); // Close progress dialog
+      Navigator.pop(context); // Close server screen
     }
   }
 
@@ -167,18 +163,15 @@ class _ServersScreenState extends State<ServersScreen> {
           separatorBuilder: (_, __) => const Divider(color: Colors.grey),
           itemCount: widget.servers.length,
           itemBuilder: (context, index) {
-            final vpn = Provider.of<VpnConnectionProvider>(context);
+            final server = widget.servers[index];
 
-            // 🔥 Show yellow tick if:
-            // - user selected server this session
-            // OR
-            // - restored from saved last connected server
+            // Yellow tick if server is selected
             final bool isSelected =
             (index == controller.getSelectedIndex() &&
                 widget.tab == controller.getSelectedTab());
 
             return InkWell(
-              onTap: () => connectToServer(widget.servers[index], index),
+              onTap: () => connectToServer(server, index),
               child: ListTile(
                 leading: Container(
                   height: 40,
@@ -188,14 +181,14 @@ class _ServersScreenState extends State<ServersScreen> {
                     image: DecorationImage(
                       fit: BoxFit.cover,
                       image: AssetImage(
-                        'icons/flags/png250px/${widget.servers[index].countryCode.toLowerCase()}.png',
+                        'icons/flags/png250px/${server.countryCode.toLowerCase()}.png',
                         package: 'country_icons',
                       ),
                     ),
                   ),
                 ),
                 title: Text(
-                  widget.servers[index].country,
+                  server.country,
                   style: const TextStyle(fontSize: 18, color: Colors.white),
                 ),
                 trailing: Icon(

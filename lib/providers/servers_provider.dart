@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../modals/vpnServer.dart';
 
 class ServersProvider with ChangeNotifier {
@@ -8,6 +9,27 @@ class ServersProvider with ChangeNotifier {
   List<VpnServer> _freeServers = [];
   List<VpnServer> _proServers = [];
   bool _isLoading = false;
+
+  // Add this for restoring
+  Future<void> restoreSelectedServer() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? lastCountryCode = prefs.getString('lastCountryCode');
+
+    if (lastCountryCode != null) {
+      // Find server in free servers
+      VpnServer? server = _freeServers.firstWhere(
+            (s) => s.countryCode == lastCountryCode,
+        orElse: () => _proServers.firstWhere(
+              (s) => s.countryCode == lastCountryCode,
+          orElse: () => _freeServers.isNotEmpty ? _freeServers[0] : _proServers[0],
+        ),
+      );
+
+      _selectedServer = server;
+      selectedIndex = (_freeServers + _proServers).indexOf(server);
+      notifyListeners();
+    }
+  }
 
   void setLoading(bool isLoading) {
     _isLoading = isLoading;
@@ -26,8 +48,15 @@ class ServersProvider with ChangeNotifier {
 
   String getSelectedTab() => selectedTab;
 
+
   void setSelectedServer(VpnServer server) {
     _selectedServer = server;
+
+    int index = _freeServers.indexOf(server);
+    if (index == -1) index = _proServers.indexOf(server);
+
+    if (index != -1) selectedIndex = index;
+
     notifyListeners();
   }
 
