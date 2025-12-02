@@ -26,6 +26,36 @@ class ServersScreen extends StatefulWidget {
 }
 
 class _ServersScreenState extends State<ServersScreen> {
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreSelectedServer();
+  }
+
+  /// 🔥 Restore connected server selection when app restarts
+  void _restoreSelectedServer() {
+    final vpn = Provider.of<VpnConnectionProvider>(context, listen: false);
+    final controller = Provider.of<ServersProvider>(context, listen: false);
+
+    if (!vpn.isConnected) return;
+
+    if (vpn.lastConnectedCountry == null || vpn.lastConnectedCountryCode == null) {
+      return;
+    }
+
+    // find the index in THIS list of servers
+    final index = widget.servers.indexWhere((s) =>
+    s.country == vpn.lastConnectedCountry &&
+        s.countryCode.toLowerCase() == vpn.lastConnectedCountryCode!.toLowerCase()
+    );
+
+    if (index != -1) {
+      controller.setSelectedIndex(index);
+      controller.setSelectedTab(widget.tab);
+    }
+  }
+
   void showProgressDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -53,12 +83,17 @@ class _ServersScreenState extends State<ServersScreen> {
     final adsProvider = Provider.of<AdsProvider>(context, listen: false);
     final apps = Provider.of<AppsProvider>(context, listen: false);
 
-    // Select server in UI
+    /// Store selected server in UI
     controller.setSelectedIndex(index);
     controller.setSelectedTab(widget.tab);
     controllerVPN.vpnConfig = VpnConfig.fromJson(server.toJson());
 
-    // Check if connected already and disconnect
+    /// 🔥 Save this server as the last connected server immediately
+    vpnConnectionProvider.lastConnectedCountry = server.country;
+    vpnConnectionProvider.lastConnectedCountryCode = server.countryCode;
+    vpnConnectionProvider.saveVpnState();
+
+    // Disconnect if already connected
     final comp = vpnConnectionProvider.stage?.toString() == null
         ? "Disconnect"
         : vpnConnectionProvider.stage.toString().split('.').last;
@@ -67,7 +102,6 @@ class _ServersScreenState extends State<ServersScreen> {
       vpnConnectionProvider.engine.disconnect();
       await Future.delayed(const Duration(seconds: 1));
 
-      // Only allowed toast (disconnect toast)
       Fluttertoast.showToast(
         msg: "Disconnected from previous server",
         toastLength: Toast.LENGTH_SHORT,
@@ -78,7 +112,6 @@ class _ServersScreenState extends State<ServersScreen> {
       );
     }
 
-    // Start VPN connection
     vpnConnectionProvider.setRadius();
 
     adsProvider.loadInterstitialAd().then((_) {
@@ -90,10 +123,8 @@ class _ServersScreenState extends State<ServersScreen> {
     }
 
     if (controllerVPN.vpnConfig != null) {
-      // Show progress dialog
       showProgressDialog(context);
 
-      // Mark that we tried to connect
       vpnConnectionProvider.triedToConnect = true;
 
       await vpnConnectionProvider.initPlatformState(
@@ -104,10 +135,7 @@ class _ServersScreenState extends State<ServersScreen> {
         controllerVPN.vpnConfig!.password ?? "",
       );
 
-      // Close progress dialog
       Navigator.pop(context);
-
-      // Close server screen and go back to homepage
       Navigator.pop(context);
     }
   }
@@ -139,6 +167,16 @@ class _ServersScreenState extends State<ServersScreen> {
           separatorBuilder: (_, __) => const Divider(color: Colors.grey),
           itemCount: widget.servers.length,
           itemBuilder: (context, index) {
+            final vpn = Provider.of<VpnConnectionProvider>(context);
+
+            // 🔥 Show yellow tick if:
+            // - user selected server this session
+            // OR
+            // - restored from saved last connected server
+            final bool isSelected =
+            (index == controller.getSelectedIndex() &&
+                widget.tab == controller.getSelectedTab());
+
             return InkWell(
               onTap: () => connectToServer(widget.servers[index], index),
               child: ListTile(
@@ -163,10 +201,7 @@ class _ServersScreenState extends State<ServersScreen> {
                 trailing: Icon(
                   Icons.check_circle,
                   size: 30,
-                  color: index == controller.getSelectedIndex() &&
-                      widget.tab == controller.getSelectedTab()
-                      ? Colors.amber
-                      : Colors.grey,
+                  color: isSelected ? Colors.amber : Colors.grey,
                 ),
               ),
             );

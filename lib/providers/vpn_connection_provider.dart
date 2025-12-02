@@ -12,20 +12,36 @@ class VpnConnectionProvider with ChangeNotifier {
   bool _isConnected = false;
   bool restoredFromAppStart = false;
 
-
   bool get isConnected => _isConnected;
 
+  // 🔥 ADDED: To remember server after restart
+  String? lastConnectedCountry;
+  String? lastConnectedCountryCode;
+
+  // ==================== SAVE STATE ====================
   Future<void> saveVpnState() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.setBool('isConnected', _isConnected);
+
+    if (lastConnectedCountry != null) {
+      prefs.setString('lastCountry', lastConnectedCountry!);
+    }
+    if (lastConnectedCountryCode != null) {
+      prefs.setString('lastCountryCode', lastConnectedCountryCode!);
+    }
   }
 
+  // ==================== RESTORE STATE ====================
   Future<void> restoreVpnState() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
+
     _isConnected = prefs.getBool('isConnected') ?? false;
 
+    lastConnectedCountry = prefs.getString('lastCountry');
+    lastConnectedCountryCode = prefs.getString('lastCountryCode');
+
     if (_isConnected) {
-      restoredFromAppStart = true;   // <-- IMPORTANT
+      restoredFromAppStart = true;
       initialize();
     }
   }
@@ -61,7 +77,6 @@ class VpnConnectionProvider with ChangeNotifier {
           notifyListeners();
         },
 
-        // ❤️ THE IMPORTANT FIX IS HERE ❤️
         onVpnStageChanged: (vpnStage, raw) {
           stage = vpnStage;
           notifyListeners();
@@ -70,7 +85,6 @@ class VpnConnectionProvider with ChangeNotifier {
             _isConnected = true;
             saveVpnState();
 
-            // ❌ DO NOT SHOW TOAST IF IT'S FROM restoreVpnState()
             if (!restoredFromAppStart) {
               Fluttertoast.showToast(
                 msg: "Connected Successfully",
@@ -93,10 +107,9 @@ class VpnConnectionProvider with ChangeNotifier {
               });
             }
 
-            restoredFromAppStart = false;  // Reset for next time
+            restoredFromAppStart = false;
           }
 
-          // RESET STATE WHEN DISCONNECTED
           if (vpnStage == VPNStage.disconnected) {
             _isConnected = false;
             saveVpnState();

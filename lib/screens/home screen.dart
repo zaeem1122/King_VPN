@@ -504,18 +504,18 @@ class _FirstScreenState extends State<FirstScreen> {
               ),
             ),
           ),
-          const Divider(height: 2, color: Color.fromARGB(255, 218, 218, 218)),
-          _buildDrawerItem(r, Icons.block, "Remove Ads", () {
-            try {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const RemoveAdsScreen(),
-                ),
-              );
-            } catch (e) {
-              print("Navigation Error: $e");
-            }
-          }),
+          // const Divider(height: 2, color: Color.fromARGB(255, 218, 218, 218)),
+          // _buildDrawerItem(r, Icons.block, "Remove Ads", () {
+          //   try {
+          //     Navigator.of(context).push(
+          //       MaterialPageRoute(
+          //         builder: (context) => const RemoveAdsScreen(),
+          //       ),
+          //     );
+          //   } catch (e) {
+          //     print("Navigation Error: $e");
+          //   }
+          // }),
           const Divider(height: 2, color: Color.fromARGB(255, 218, 218, 218)),
           _buildDrawerItem(r, Icons.info_outline, "Share", () {
             Share.share(
@@ -734,7 +734,7 @@ class _FirstScreenState extends State<FirstScreen> {
                 "Mbps",
               ),
             ),
-            SizedBox(width: r.spacing(1)),
+            SizedBox(width: r.spacing(0.1)),
             Flexible(
               flex: 2,
               child: _buildConnectionButton(r, value, showProgressDialog),
