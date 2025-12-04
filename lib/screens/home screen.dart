@@ -504,18 +504,18 @@ class _FirstScreenState extends State<FirstScreen> {
               ),
             ),
           ),
-          // const Divider(height: 2, color: Color.fromARGB(255, 218, 218, 218)),
-          // _buildDrawerItem(r, Icons.block, "Remove Ads", () {
-          //   try {
-          //     Navigator.of(context).push(
-          //       MaterialPageRoute(
-          //         builder: (context) => const RemoveAdsScreen(),
-          //       ),
-          //     );
-          //   } catch (e) {
-          //     print("Navigation Error: $e");
-          //   }
-          // }),
+          const Divider(height: 2, color: Color.fromARGB(255, 218, 218, 218)),
+          _buildDrawerItem(r, Icons.block, "Remove Ads", () {
+            try {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) =>  RemoveAdsScreen(),
+                ),
+              );
+            } catch (e) {
+              print("Navigation Error: $e");
+            }
+          }),
           const Divider(height: 2, color: Color.fromARGB(255, 218, 218, 218)),
           _buildDrawerItem(r, Icons.info_outline, "Share", () {
             Share.share(

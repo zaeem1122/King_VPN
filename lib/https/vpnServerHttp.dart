@@ -14,7 +14,8 @@ class VpnServerHttp extends HttpConnection {
     print("📡 API CALL START: Fetching servers of type: $type");
     List<VpnServer> servers = [];
     // Map<String, String> header = {'auth_token': 'VBrcKTECHNO5566'}; origion
-    Map<String, String> header = {'auth_token': 'majid_vpn@4545'};
+    // Map<String, String> header = {'auth_token': 'majid_vpn@4545'};
+    Map<String, String> header = {'auth_token': 'vpn@majid20'};
     final res =
     await http.get(Uri.parse("${api}servers/$type"), headers: header);
     // print("${res.statusCode}:${res.body}");
@@ -38,7 +39,8 @@ class VpnServerHttp extends HttpConnection {
 
   Future<VpnConfig?> getBestServer(BuildContext context) async {
     print("📡 API CALL START: Fetching best VPN server");
-    Map<String, String> header = {'api_key': 'majid_vpn@4545'};
+    // Map<String, String> header = {'api_key': 'majid_vpn@4545'};
+    Map<String, String> header = {'api_key': 'vpn@majid20'};
     final res = await http.get(Uri.parse("${api}servers"), headers: header);
     final vpn = VpnProvider.instance(context);
 
